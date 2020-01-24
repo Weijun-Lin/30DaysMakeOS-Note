@@ -1,0 +1,360 @@
+# 01-03-Day-Note
+
+> 第一天到第三天的笔记
+
+## 1. 运行环境准备
+
+可以直接在作者提供的开发包中执行作者提供的文件，执行过程如下：
+
+1. 将对应`project`中包含源代码的目录复制到`tolset`中
+2. 执行对应的`Makefile`指令
+
+**需要在Windows的Shell环境下执行，在Git Bash执行会存在命令的不一致问题**
+
+作者在`nasm`的基础上开发了名为`nask`的汇编编译器，然后通过`imgtol`制作img镜像文件，最后通过`qemu`虚拟机运行此镜像文件，作者已经写好所有样例代码以及运行的脚本文件（批处理文件和Makefile）
+
+上面所有的作者工具都在书本配套文件的`tolset`中
+
+当然以上基础编译工具都可以使用已有工具代替（作者的类似很古老了）
+
+#### 其他工具替代
+
+- 使用`nasm`替代`nask`
+
+	```bash
+	nasm infile.asm -o outfile.img
+	```
+
+- 使用最新的 `qemu` 替代（此处为qemu4)
+
+	`qemu`基本命令行参数参考 https://www.datarelab.com/blog/Technical_literature/562.html
+
+	```bash
+	qemu-system-i386 -fda youros.img
+	```
+
+- 代替作者的`imgtol`
+
+	可以使用Linux的`dd`命令替换 Windows 下可在此处下载：http://www.chrysocome.net/download
+
+	`dd`是类似`cp`的一个工具，不过`dd`针对的是块而cp针对的是文件
+	
+	可参考：http://blackblog.tech/2018/07/19/CreateOSDay3/#comments
+
+## 2. 汇编
+
+### i. 寄存器
+
+#### 16 位寄存器
+
+| 名字 | 功能                               |
+| :--- | :--------------------------------- |
+| AX   | accumulator， 累加寄存器           |
+| CX   | counter， 计数寄存器               |
+| DX   | data， 数据寄存器                  |
+| BX   | base， 基址寄存器                  |
+| SP   | stack pointer， 栈指针寄存器       |
+| BP   | base pointer， 基址指针寄存器      |
+| SI   | source index， 源变址寄存器        |
+| DI   | destination index， 目的变址寄存器 |
+
+#### 8 位寄存器
+
+| 名字 | 功能                               |
+| ---- | ---------------------------------- |
+| AL   | 累加寄存器低位（accumulator low）  |
+| CL   | 计数寄存器低位（counter low）      |
+| DL   | 数据寄存器低位（data low）         |
+| BL   | 基址寄存器低位（base low）         |
+| AH   | 累加寄存器高位（accumulator high） |
+| CH   | 计数寄存器高位（counter high）     |
+| DH   | 数据寄存器高位（data high）        |
+| BH   | 基址寄存器高位（base high）        |
+
+#### 段寄存器
+
+| 名字 | 功能                          |
+| ---- | ----------------------------- |
+| ES   | 附加段寄存器（extra segment） |
+| CS   | 代码段寄存器（code segment）  |
+| SS   | 栈段寄存器（stack segment）   |
+| DS   | 数据段寄存器（data segment）  |
+| FS   | 没有名称（segment part 2）    |
+| GS   | 没有名称（segment part 3）    |
+
+#### 32 位拓展寄存器
+
+EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI （加了个extend拓展的标签）
+
+### ii. 基础指令
+
+- DB：按字节定义类似的还有DW（定义字），DD（定义双字）
+
+- MOV：移动指令`mov A, B`意为`A = B`, `mov`后的寄存器或者字面量加上`[]`则代表引用此地址的值
+
+	如：`MOV AL, BYTE [BX]`，会将指定段寄存器乘16倍将上BX的值形成目标地址
+
+	BX、 BP、 SI、 DI这几个。 剩下的AX、 CX、 DX、 SP不能用来指定内存地址
+
+- JMP：跳转指令 跳转到指定内存地址
+
+- INT：软件中断指令 后接中断号，调用BIOS预设的函数（功能）
+
+- JE：相等则跳转（工具FLAGS寄存器的标志寄存器的值跳转）
+
+- CMP：比较两个寄存器（书面量）的值，修改对应的标志寄存器
+
+- HLT：让CPU进入待机状态只要外部发生变化， 比如按下键盘， 或是移动鼠标， CPU就会醒过来， 继续执行程序
+
+- RESB：填充指定数量字节的0x00
+
+- ORG：将指令加载到指定位置，详情可见：https://blog.csdn.net/yuduoluogongwu/article/details/7359242
+
+### iii. NASM 和 NASK 的区别
+
+nask 和 nasm 部分语法不同，差别如下：
+
+|          NASK代码 | NASM代码                         |
+| ----------------: | :------------------------------- |
+|         JMP entry | JMP SHORT entry                  |
+| RESB <填充字节数> | TIMES <填充字节数> DB <填充数据> |
+|     RESB 0x7dfe-$ | TIMES 0x1fe-(\$-$$) DB 0         |
+|         ALIGNB 16 | ALIGN 16, DB 0                   |
+
+在文中出现了美元符代表的意思如下：
+
+\$ 是当前位置
+\$\$ 是段开始位置
+\$ - \$\$ 是当前位置在段内的偏移
+
+## 3. Makefile
+
+Makefile就像是一个非常聪明的批处理文件
+
+具体操作说明可参考：http://www.ruanyifeng.com/blog/2015/02/make.html
+
+## 4. IPL
+
+### 软盘 FAT12
+
+作者使用的是格式为`FAT12`格式的软盘
+
+用Windows或MS-DOS格式化出来的软盘就是这种格式。 作者的helloos也采用了这种格式， 其中容纳了作者开发的操作系统。 这个格式兼容性好， 在Windows上也能用， 而且剩余的磁盘空间还可以用来保存自己喜欢的文件。
+
+ 1张软盘有80个柱面， 2个磁头， 18个扇区， 且一个扇区有512字节。 所以， 一张软盘的容量是：
+80×2×18×512 = 1474560 Byte = 1440KB
+
+### 启动区
+
+（boot sector） 软盘第一个的扇区称为启动区。 那么什么是扇区呢？ 计算机读写软盘的时候， 并不是一个字节一个字节地读写的， 而是以512字节为一个单位进行读写。 因此,软盘的512字节就称为一个扇区。 一张软盘的空间共有1440KB， 也就是1474560字节， 除以512得2880， 这也就是说一张软盘共有2880个扇区。 那为什么第一个扇区称为启动区呢？ 那是因为计算机首先从最初一个扇区开始读软盘， 然后去检查这个扇区最后2个字节的内容。如果这最后2个字节不是0x55 AA， 计算机会认为这张盘上没有所需的启动程序， 就会报一个不能启动的错误。 （也许有人会问为什么一定是0x55AA呢？ 那是当初的设计者随便定的， 笔者也没法解释） 。 如果计算机确认了第一个扇区的最后两个字节正好是0x55 AA， 那它就认为这个扇区的开头是启动程序， 并开始执行这个程序。
+
+### IPL 启动程序装载器
+
+initial program loader的缩写。 启动程序加载器。 启动区只有区区512字节， 实际的操作系统不像hello-os这么小， 根本装不进去。 所以几乎所有的操作系统， 都是把加载操作系统本身的程序放在启动区里的。 有鉴于此， 有时也将启动区称为IPL。 但hello-os没有加载程序的功能， 所以HELLOIPL这个名字不太顺理成章。 如果有人正义感特别强， 觉得“这是撒谎造假， 万万不能容忍！ ”， 那也可以改成其他的名字。 但是必须起一个8字节的名字， 如果名字长度不到8字节的话， 需要在最后补上空格
+
+### 制作 IPL
+
+计算机加载操作系统的流程如下：
+
+1. 从特定位置读取操作系统数据（USB或者软盘，软盘已经淘汰了），但这里使用的是软盘
+2. 软盘的第一个512字节的扇区作为启动区，执行此启动区指令
+3. 该启动区将软盘内容加载到内存指定位置运行
+
+文中的IPL加载了软盘的10个柱面
+
+文中的IPL如下：
+
+```assembly
+; haribote-ipl
+; TAB=4
+
+CYLS	EQU		10				; 声明CYLS=10
+
+		ORG		0x7c00			; 指明程序装载地址
+
+; 标准FAT12格式软盘专用的代码 Stand FAT12 format floppy code
+
+		JMP		entry
+		DB		0x90
+		DB		"HARIBOTE"		; 启动扇区名称（8字节）
+		DW		512				; 每个扇区（sector）大小（必须512字节）
+		DB		1				; 簇（cluster）大小（必须为1个扇区）
+		DW		1				; FAT起始位置（一般为第一个扇区）
+		DB		2				; FAT个数（必须为2）
+		DW		224				; 根目录大小（一般为224项）
+		DW		2880			; 该磁盘大小（必须为2880扇区1440*1024/512）
+		DB		0xf0			; 磁盘类型（必须为0xf0）
+		DW		9				; FAT的长度（必??9扇区）
+		DW		18				; 一个磁道（track）有几个扇区（必须为18）
+		DW		2				; 磁头数（必??2）
+		DD		0				; 不使用分区，必须是0
+		DD		2880			; 重写一次磁盘大小
+		DB		0,0,0x29		; 意义不明（固定）
+		DD		0xffffffff		; （可能是）卷标号码
+		DB		"HARIBOTEOS "	; 磁盘的名称（必须为11字?，不足填空格）
+		DB		"FAT12   "		; 磁盘格式名称（必??8字?，不足填空格）
+		RESB	18				; 先空出18字节
+
+; 程序主体
+
+entry:
+		MOV		AX,0			; 初始化寄存器
+		MOV		SS,AX
+		MOV		SP,0x7c00
+		MOV		DS,AX
+
+; 读取磁盘
+
+		MOV		AX,0x0820
+		MOV		ES,AX
+		MOV		CH,0			; 柱面0
+		MOV		DH,0			; 磁头0
+		MOV		CL,2			; 扇区2
+
+readloop:
+		MOV		SI,0			; 记录失败次数寄存器
+
+retry:
+		MOV		AH,0x02			; AH=0x02 : 读入磁盘
+		MOV		AL,1			; 1个扇区
+		MOV		BX,0
+		MOV		DL,0x00			; A驱动器
+		INT		0x13			; 调用磁盘BIOS
+		JNC		next			; 没出错则跳转到fin
+		ADD		SI,1			; 往SI加1
+		CMP		SI,5			; 比较SI与5
+		JAE		error			; SI >= 5 跳转到error
+		MOV		AH,0x00
+		MOV		DL,0x00			; A驱动器
+		INT		0x13			; 重置驱动器
+		JMP		retry
+next:
+		MOV		AX,ES			; 把内存地址后移0x200（512/16十六进制转换）
+		ADD		AX,0x0020
+		MOV		ES,AX			; ADD ES,0x020因为没有ADD ES，只能通过AX进行
+		ADD		CL,1			; 往CL里面加1
+		CMP		CL,18			; 比较CL与18
+		JBE		readloop		; CL <= 18 跳转到readloop
+		MOV		CL,1
+		ADD		DH,1
+		CMP		DH,2
+		JB		readloop		; DH < 2 跳转到readloop
+		MOV		DH,0
+		ADD		CH,1
+		CMP		CH,CYLS
+		JB		readloop		; CH < CYLS 跳转到readloop
+
+; 读取完毕，跳转到haribote.sys执行！
+		MOV		[0x0ff0],CH		; IPLがどこまで読んだのかをメモ
+		JMP		0xc200
+
+error:
+		MOV		SI,msg
+
+putloop:
+		MOV		AL,[SI]
+		ADD		SI,1			; 给SI加1
+		CMP		AL,0
+		JE		fin
+		MOV		AH,0x0e			; 显示一个文字
+		MOV		BX,15			; 指定字符颜色
+		INT		0x10			; 调用显卡BIOS
+		JMP		putloop
+
+fin:
+		HLT						; 让CPU停止，等待指令
+		JMP		fin				; 无限循环
+
+msg:
+		DB		0x0a, 0x0a		; 换行两次
+		DB		"load error"
+		DB		0x0a			; 换行
+		DB		0
+
+		RESB	0x7dfe-$		; 填写0x00直到0x001fe
+
+		DB		0x55, 0xaa
+
+```
+
+最后以0x55aa结尾说明是启动区
+
+该启动区代码包含了试错，循环读取扇区和柱面
+
+主要注意：
+
+1. 第41行：`MOV		AX,0x0820`
+
+	这段是把第一个柱面的第二个扇区（第一个为启动扇区），加载到内存`0x8200`的位置，0x13通过段寄存器ES和BX设置，这里ES为`0x0820`需要扩大16倍即为`0x8200`
+
+	这里BIOS将系统启动代码（第一个扇区）加载到`0x8000`处，然后我们的IPL加载之后的扇区，所以将AX赋值为`0x0820`然后在赋值给ES
+
+2. 第82行：`JMP		0xc200`
+
+	这里是启动区代码执行成功后，跳转到`0xc200`处执行代码
+
+	我们的真正的OS代码保留在软盘的`0x4200`的位置，软盘的第一个扇区的位置是`0x8000`所以有`0x8000+0x4200 = 0xc200`，所以跳转到此位置
+
+	`0x4200`是因为向软盘写文件时一帮保存到此位置
+
+3. 第107行：`RESB	0x7dfe-$		; 填写0x00直到0x001fe`
+
+	只是将启动区后续部分填充为0
+
+	`0x7dfe = 0x7c00 + 511`得到，表示512字节的启动区
+
+## 5. 导入C语言
+
+文章中将C语言代码`bootpack.c`编译为32位汇编，要使用C语言，在操作系统中必然是C语言和汇编是混合复用的，所以需要专门的代码进行链接，文章中给出的是`asmhead.nas`,这里进行了对显卡显示模式的设置，以及对C语言的导入操作，可以到此文件中看一看，作者给出了很清楚的注释。（中文代码：https://github.com/yourtion/30dayMakeOS/blob/master/03_day/）
+
+对C语言的处理作者分为以下几步：
+
+- 使用cc1.exe从bootpack.c生成bootpack.gas
+- 使用gas2nask.exe从bootpack.gas生成bootpack.nas
+- 使用nask.exe从bootpack.nas生成bootpack.obj
+- 使用obj2bim.exe从bootpack.obj生成bootpack.bim
+- 使用bim2hrb.exe从bootpack.bim生成bootpack.hrb
+- 这样就做成了机器语言， 再使用copy指令将asmhead.bin与bootpack.hrb单纯结合到起来， 就成了haribote.sys
+
+`cc1`是C编译器， 将C语言代码编译为32位的GAS的汇编代码
+
+`gas2nask`是将gas汇编编译为nasm识别的汇编格式了,通过nask（nasm）编译位OBJ目标文件
+
+`obj2bim`将目标文件编译为二进制镜像文件，方便不同的目标文件进行合并
+
+`bim2hrb`将最后的合并目标文件编译为`hrb`文件（这个是适合作者的这个编译环境的最终二进制文件）
+
+### C语言调用汇编
+
+```assembly
+; naskfunc
+; TAB=4
+
+[FORMAT "WCOFF"]				; 制作目标文件的模式	
+[BITS 32]						; 制作32位模式用的机器语言
+
+
+; 制作目标文件的信息
+
+[FILE "naskfunc.nas"]			; 源文件名信息
+
+		GLOBAL	_io_hlt			; 程序中包含的函数名
+
+
+; 以下是实际的函数
+
+[SECTION .text]		; 目标文件中写了这些后再写程序
+
+_io_hlt:	; void io_hlt(void);
+		HLT
+		RET
+```
+
+将此文件的`obj`文件和C语言的`obj`文件一起编译为`bim`即可(使用作者自带的工具)
+
+有几个需要注意的地方：
+
+1. 需要和C语言链接的函数都需要标识为`GLOBAL`，反义为`LOCAL`
+2. 导出的函数需要前加`_`，这样才能和C语言链接，C语言编译后的函数会加`_`
+
+可以看看作者的`Makefile`可以更好的明白整个编译的过程
